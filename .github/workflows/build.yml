@@ -122,7 +122,7 @@ jobs:
           echo "Metadata: $METADATA"
 
           curl -f -X POST \
-            "https://wow.curseforge.com/api/projects/${{ vars.CURSEFORGE_PROJECT_ID }}/upload-file" \
+            "https://wow.curseforge.com/api/projects/1502235/upload-file" \
             -H "X-Api-Token: ${{ secrets.CURSE_API_TOKEN }}" \
             -F "metadata=$METADATA" \
             -F "file=@FAHH.zip"
