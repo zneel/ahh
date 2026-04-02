@@ -131,9 +131,6 @@ local function OnEvent(self, event, arg1)
             if db[k] == nil then db[k] = v end
         end
 
-        frame:UnregisterEvent("ADDON_LOADED")
-        frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-
         SLASH_FAHH1 = "/fahh"
         SlashCmdList["FAHH"] = HandleSlash
     elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
@@ -142,4 +139,5 @@ local function OnEvent(self, event, arg1)
 end
 
 frame:RegisterEvent("ADDON_LOADED")
+frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 frame:SetScript("OnEvent", OnEvent)
