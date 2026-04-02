@@ -13,9 +13,16 @@ local SOUNDS = {
     "fahh4.ogg",
 }
 
-local function PlayRandomFahh()
+local function PlayRandomFahh(debug)
     local path = SOUND_DIR .. SOUNDS[math.random(#SOUNDS)]
-    PlaySoundFile(path, "Master")
+    local willPlay, handle = PlaySoundFile(path, "Master")
+    if debug then
+        if willPlay then
+            print(PREFIX .. "playing: " .. path)
+        else
+            print(PREFIX .. "|cffff0000FAILED|r: " .. path)
+        end
+    end
 end
 
 local DEFAULTS = {
@@ -103,8 +110,7 @@ local function HandleSlash(msg)
         db.world = not db.world
         print(PREFIX .. "world " .. ColorBool(db.world))
     elseif cmd == "test" then
-        PlayRandomFahh()
-        print(PREFIX .. "playing test sound")
+        PlayRandomFahh(true)
     else
         print(PREFIX .. "commands:")
         print("  /fahh          - toggle on/off")
