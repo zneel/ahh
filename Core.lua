@@ -123,6 +123,14 @@ local function HandleSlash(msg)
     end
 end
 
+local function RegisterCombatLog()
+    if not InCombatLockdown() then
+        frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+    else
+        frame:RegisterEvent("PLAYER_REGEN_ENABLED")
+    end
+end
+
 local function OnEvent(self, event, arg1)
     if event == "ADDON_LOADED" and arg1 == ADDON_NAME then
         FAHHDB = FAHHDB or {}
@@ -133,13 +141,9 @@ local function OnEvent(self, event, arg1)
 
         SLASH_FAHH1 = "/fahh"
         SlashCmdList["FAHH"] = HandleSlash
-
-        if not InCombatLockdown() then
-            frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-        else
-            frame:RegisterEvent("PLAYER_REGEN_ENABLED")
-        end
         frame:UnregisterEvent("ADDON_LOADED")
+
+        C_Timer.After(0, RegisterCombatLog)
     elseif event == "PLAYER_REGEN_ENABLED" then
         frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
         frame:UnregisterEvent("PLAYER_REGEN_ENABLED")
