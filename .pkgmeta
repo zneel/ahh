@@ -1,0 +1,5 @@
+package-as: FAHH
+
+ignore:
+  - README.md
+  - .github

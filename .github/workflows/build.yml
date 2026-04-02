@@ -1,0 +1,128 @@
+name: Build & Package
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lua syntax check
+        run: |
+          sudo apt-get install -y lua5.4
+          echo "Checking Core.lua..."
+          luac5.4 -p Core.lua
+
+      - name: Package addon
+        run: |
+          ADDON_DIR="FAHH"
+          mkdir -p build/$ADDON_DIR
+
+          cp *.lua *.toc build/$ADDON_DIR/
+          cp -r Sounds build/$ADDON_DIR/
+
+          cd build
+          zip -r ../FAHH.zip $ADDON_DIR/
+          cd ..
+
+          echo "Package size: $(du -h FAHH.zip | cut -f1)"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FAHH
+          path: FAHH.zip
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            FAHH.toc
+            FAHH_Mainline.toc
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: FAHH
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: FAHH.zip
+          generate_release_notes: true
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch CurseForge game version IDs
+        id: cf_versions
+        run: |
+          VERSIONS_JSON=$(curl -s \
+            "https://wow.curseforge.com/api/game/versions" \
+            -H "X-Api-Token: ${{ secrets.CURSE_API_TOKEN }}")
+
+          TOC_IFACE=$(grep -oP '## Interface:\s*\K\d+' FAHH.toc 2>/dev/null || echo "")
+          if [ -z "$TOC_IFACE" ]; then
+            TOC_IFACE=$(grep -oP '## Interface:\s*\K\d+' FAHH_Mainline.toc 2>/dev/null || echo "120001")
+          fi
+
+          MAJOR=$((TOC_IFACE / 10000))
+          MINOR=$(( (TOC_IFACE % 10000) / 100 ))
+          PATCH=$((TOC_IFACE % 100))
+          TARGET_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          echo "Target WoW version: $TARGET_VERSION"
+
+          VERSION_IDS=$(echo "$VERSIONS_JSON" | jq -c \
+            --arg ver "$TARGET_VERSION" \
+            '[.[] | select(.name == $ver or .name == "Retail") | .id]')
+
+          if [ "$VERSION_IDS" = "[]" ] || [ -z "$VERSION_IDS" ]; then
+            VERSION_IDS=$(echo "$VERSIONS_JSON" | jq -c \
+              --arg ver "$TARGET_VERSION" \
+              '[.[] | select(.name == $ver) | .id]')
+          fi
+
+          echo "Game version IDs: $VERSION_IDS"
+          echo "ids=$VERSION_IDS" >> "$GITHUB_OUTPUT"
+
+      - name: Upload to CurseForge
+        run: |
+          VERSION_IDS='${{ steps.cf_versions.outputs.ids }}'
+          if [ "$VERSION_IDS" = "[]" ] || [ -z "$VERSION_IDS" ]; then
+            VERSION_IDS="[14422]"
+            echo "WARNING: Using fallback game version IDs"
+          fi
+
+          METADATA=$(cat <<ENDJSON
+          {
+            "changelog": "See https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}",
+            "changelogType": "text",
+            "displayName": "FAHH ${{ steps.version.outputs.version }}",
+            "gameVersions": ${VERSION_IDS},
+            "releaseType": "release"
+          }
+          ENDJSON
+          )
+
+          echo "Metadata: $METADATA"
+
+          curl -f -X POST \
+            "https://wow.curseforge.com/api/projects/${{ vars.CURSEFORGE_PROJECT_ID }}/upload-file" \
+            -H "X-Api-Token: ${{ secrets.CURSE_API_TOKEN }}" \
+            -F "metadata=$METADATA" \
+            -F "file=@FAHH.zip"
