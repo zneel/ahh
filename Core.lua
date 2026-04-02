@@ -36,25 +36,8 @@ local DEFAULTS = {
 -- Saved variables (loaded via ADDON_LOADED)
 local db
 
-local function IsGroupMember(guid)
-    if UnitGUID("player") == guid then return true end
-
-    local prefix, count
-    if IsInRaid() then
-        prefix, count = "raid", GetNumGroupMembers()
-    elseif IsInGroup() then
-        prefix, count = "party", GetNumGroupMembers() - 1
-    else
-        return false
-    end
-
-    for i = 1, count do
-        if UnitGUID(prefix .. i) == guid then
-            return true
-        end
-    end
-    return false
-end
+-- Track which units are dead so we only fire once per death
+local deadUnits = {}
 
 local function IsAllowedContent()
     local _, instanceType = GetInstanceInfo()
@@ -65,15 +48,42 @@ local function IsAllowedContent()
     return false
 end
 
-local function OnCombatLogEvent()
+local function CheckUnitDeath(unit)
     if not db or not db.enabled then return end
     if not IsAllowedContent() then return end
+    if not UnitExists(unit) then return end
 
-    local _, subEvent, _, _, _, _, _, destGUID = CombatLogGetCurrentEventInfo()
-    if subEvent ~= "UNIT_DIED" then return end
+    if UnitIsDeadOrGhost(unit) then
+        if not deadUnits[unit] then
+            deadUnits[unit] = true
+            PlayRandomFahh()
+        end
+    else
+        deadUnits[unit] = nil
+    end
+end
 
-    if IsGroupMember(destGUID) then
-        PlayRandomFahh()
+local function GetGroupUnits()
+    local units = { "player" }
+    if IsInRaid() then
+        for i = 1, GetNumGroupMembers() do
+            units[#units + 1] = "raid" .. i
+        end
+    elseif IsInGroup() then
+        for i = 1, GetNumGroupMembers() - 1 do
+            units[#units + 1] = "party" .. i
+        end
+    end
+    return units
+end
+
+local function RegisterGroupEvents()
+    frame:UnregisterEvent("UNIT_HEALTH")
+    deadUnits = {}
+
+    local units = GetGroupUnits()
+    for _, unit in ipairs(units) do
+        frame:RegisterUnitEvent("UNIT_HEALTH", unit)
     end
 end
 
@@ -123,14 +133,6 @@ local function HandleSlash(msg)
     end
 end
 
-local function RegisterCombatLog()
-    if not InCombatLockdown() then
-        frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-    else
-        frame:RegisterEvent("PLAYER_REGEN_ENABLED")
-    end
-end
-
 local function OnEvent(self, event, arg1)
     if event == "ADDON_LOADED" and arg1 == ADDON_NAME then
         FAHHDB = FAHHDB or {}
@@ -143,12 +145,12 @@ local function OnEvent(self, event, arg1)
         SlashCmdList["FAHH"] = HandleSlash
         frame:UnregisterEvent("ADDON_LOADED")
 
-        C_Timer.After(0, RegisterCombatLog)
-    elseif event == "PLAYER_REGEN_ENABLED" then
-        frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-        frame:UnregisterEvent("PLAYER_REGEN_ENABLED")
-    elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
-        OnCombatLogEvent()
+        frame:RegisterEvent("GROUP_ROSTER_UPDATE")
+        frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+    elseif event == "GROUP_ROSTER_UPDATE" or event == "PLAYER_ENTERING_WORLD" then
+        RegisterGroupEvents()
+    elseif event == "UNIT_HEALTH" then
+        CheckUnitDeath(arg1)
     end
 end
 
