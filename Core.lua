@@ -48,10 +48,14 @@ local function IsAllowedContent()
     return key and db[key]
 end
 
+local function IsGroupUnit(unit)
+    return UnitInParty(unit) or UnitInRaid(unit) or UnitIsUnit(unit, "player")
+end
+
 local function CheckUnitDeath(unit)
     if not db or not db.enabled then return end
     if not IsAllowedContent() then return end
-    if not UnitExists(unit) then return end
+    if not IsGroupUnit(unit) then return end
 
     if UnitIsDeadOrGhost(unit) then
         if not deadUnits[unit] then
@@ -61,20 +65,6 @@ local function CheckUnitDeath(unit)
     else
         deadUnits[unit] = nil
     end
-end
-
-local function GetGroupUnits()
-    local units = { "player" }
-    if IsInRaid() then
-        for i = 1, GetNumGroupMembers() do
-            units[#units + 1] = "raid" .. i
-        end
-    elseif IsInGroup() then
-        for i = 1, GetNumGroupMembers() - 1 do
-            units[#units + 1] = "party" .. i
-        end
-    end
-    return units
 end
 
 local function ColorBool(val)
@@ -132,14 +122,6 @@ end
 
 local frame = CreateFrame("Frame")
 
-local function RegisterGroupEvents()
-    frame:UnregisterEvent("UNIT_HEALTH")
-    deadUnits = {}
-
-    local units = GetGroupUnits()
-    frame:RegisterUnitEvent("UNIT_HEALTH", unpack(units))
-end
-
 frame:RegisterEvent("ADDON_LOADED")
 frame:SetScript("OnEvent", function(self, event, arg1)
     if event == "ADDON_LOADED" and arg1 == ADDON_NAME then
@@ -153,13 +135,11 @@ frame:SetScript("OnEvent", function(self, event, arg1)
         SlashCmdList["FAHH"] = HandleSlash
         self:UnregisterEvent("ADDON_LOADED")
 
-        -- Escape restricted loading context before registering events
+        -- Register unfiltered UNIT_HEALTH for all units; handler filters by group membership.
+        -- Escape restricted loading context before registering.
         C_Timer.After(0, function()
-            self:RegisterEvent("GROUP_ROSTER_UPDATE")
-            self:RegisterEvent("PLAYER_ENTERING_WORLD")
+            self:RegisterEvent("UNIT_HEALTH")
         end)
-    elseif event == "GROUP_ROSTER_UPDATE" or event == "PLAYER_ENTERING_WORLD" then
-        RegisterGroupEvents()
     elseif event == "UNIT_HEALTH" then
         CheckUnitDeath(arg1)
     end
