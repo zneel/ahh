@@ -26,11 +26,8 @@ local CONTENT_KEYS = {
     none     = "world",
 }
 
-local AFFILIATION_MASK = COMBATLOG_OBJECT_AFFILIATION_MINE
-    + COMBATLOG_OBJECT_AFFILIATION_PARTY
-    + COMBATLOG_OBJECT_AFFILIATION_RAID
-
 local db
+local deadUnits = {}
 
 ---------------------------------------------------------------------------
 -- Helpers
@@ -49,6 +46,35 @@ local function IsAllowedContent()
     local _, instanceType = GetInstanceInfo()
     local key = CONTENT_KEYS[instanceType]
     return key and db[key]
+end
+
+local function CheckUnitDeath(unit)
+    if not db or not db.enabled then return end
+    if not IsAllowedContent() then return end
+    if not UnitExists(unit) then return end
+
+    if UnitIsDeadOrGhost(unit) then
+        if not deadUnits[unit] then
+            deadUnits[unit] = true
+            PlayRandomFahh()
+        end
+    else
+        deadUnits[unit] = nil
+    end
+end
+
+local function GetGroupUnits()
+    local units = { "player" }
+    if IsInRaid() then
+        for i = 1, GetNumGroupMembers() do
+            units[#units + 1] = "raid" .. i
+        end
+    elseif IsInGroup() then
+        for i = 1, GetNumGroupMembers() - 1 do
+            units[#units + 1] = "party" .. i
+        end
+    end
+    return units
 end
 
 local function ColorBool(val)
@@ -104,30 +130,37 @@ end
 -- Initialisation
 ---------------------------------------------------------------------------
 
-local bootstrap = CreateFrame("Frame")
-bootstrap:RegisterEvent("ADDON_LOADED")
-bootstrap:SetScript("OnEvent", function(self, _, addonName)
-    if addonName ~= ADDON_NAME then return end
-    self:UnregisterEvent("ADDON_LOADED")
+local frame = CreateFrame("Frame")
 
-    FAHHDB = FAHHDB or {}
-    db = FAHHDB
-    for k, v in pairs(DEFAULTS) do
-        if db[k] == nil then db[k] = v end
-    end
+local function RegisterGroupEvents()
+    frame:UnregisterEvent("UNIT_HEALTH")
+    deadUnits = {}
 
-    SLASH_FAHH1 = "/fahh"
-    SlashCmdList["FAHH"] = HandleSlash
+    local units = GetGroupUnits()
+    frame:RegisterUnitEvent("UNIT_HEALTH", unpack(units))
+end
 
-    local frame = CreateFrame("Frame")
-    frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-    frame:SetScript("OnEvent", function()
-        if not db.enabled then return end
-        if not IsAllowedContent() then return end
-
-        local _, subevent, _, _, _, _, _, _, _, destFlags = CombatLogGetCurrentEventInfo()
-        if subevent == "UNIT_DIED" and bit.band(destFlags, AFFILIATION_MASK) > 0 then
-            PlayRandomFahh()
+frame:RegisterEvent("ADDON_LOADED")
+frame:SetScript("OnEvent", function(self, event, arg1)
+    if event == "ADDON_LOADED" and arg1 == ADDON_NAME then
+        FAHHDB = FAHHDB or {}
+        db = FAHHDB
+        for k, v in pairs(DEFAULTS) do
+            if db[k] == nil then db[k] = v end
         end
-    end)
+
+        SLASH_FAHH1 = "/fahh"
+        SlashCmdList["FAHH"] = HandleSlash
+        self:UnregisterEvent("ADDON_LOADED")
+
+        -- Escape restricted loading context before registering events
+        C_Timer.After(0, function()
+            self:RegisterEvent("GROUP_ROSTER_UPDATE")
+            self:RegisterEvent("PLAYER_ENTERING_WORLD")
+        end)
+    elseif event == "GROUP_ROSTER_UPDATE" or event == "PLAYER_ENTERING_WORLD" then
+        RegisterGroupEvents()
+    elseif event == "UNIT_HEALTH" then
+        CheckUnitDeath(arg1)
+    end
 end)
