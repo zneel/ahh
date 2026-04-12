@@ -49,7 +49,9 @@ local function IsAllowedContent()
 end
 
 local function IsGroupUnit(unit)
-    return UnitInParty(unit) or UnitInRaid(unit) or UnitIsUnit(unit, "player")
+    return unit == "player"
+        or unit:match("^party%d+$") ~= nil
+        or unit:match("^raid%d+$") ~= nil
 end
 
 local function CheckUnitDeath(unit)
