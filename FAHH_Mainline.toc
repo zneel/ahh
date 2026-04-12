@@ -1,4 +1,4 @@
-## Interface: 120001
+## Interface: 20505
 ## Title: FAHH
 ## Notes: Plays a FAHH sound when a group member dies.
 ## Version: 1.2.0

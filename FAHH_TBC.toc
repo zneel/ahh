@@ -3,7 +3,6 @@
 ## Notes: Plays a FAHH sound when a group member dies.
 ## Version: 1.2.0
 ## SavedVariables: FAHHDB
-## Category: Audio
 ## IconTexture: Interface\Icons\Spell_Shadow_DeathScream
 
 Core.lua

@@ -15,14 +15,12 @@ local DEFAULTS = {
     enabled = true,
     dungeon = true,
     raid = true,
-    scenario = false,
     world = false,
 }
 
 local CONTENT_KEYS = {
     party    = "dungeon",
     raid     = "raid",
-    scenario = "scenario",
     none     = "world",
 }
 
@@ -49,9 +47,7 @@ local function IsAllowedContent()
 end
 
 local function IsGroupUnit(unit)
-    return unit == "player"
-        or unit:match("^party%d+$") ~= nil
-        or unit:match("^raid%d+$") ~= nil
+    return UnitInParty(unit) or UnitInRaid(unit) or UnitIsUnit(unit, "player")
 end
 
 local function CheckUnitDeath(unit)
@@ -77,7 +73,7 @@ end
 -- Slash command
 ---------------------------------------------------------------------------
 
-local TOGGLES = { "dungeon", "raid", "scenario", "world" }
+local TOGGLES = { "dungeon", "raid", "world" }
 
 local function HandleSlash(msg)
     local cmd = strtrim(msg):lower()
