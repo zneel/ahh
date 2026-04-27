@@ -9,6 +9,9 @@ local SOUNDS = {
     "fahh2.ogg",
     "fahh3.ogg",
     "fahh4.ogg",
+    "fahh5.ogg",
+    "fahh6.ogg",
+    "fahh7.ogg",
 }
 
 local DEFAULTS = {
