@@ -53,6 +53,7 @@ jobs:
           sparse-checkout: |
             FAHH.toc
             FAHH_Mainline.toc
+            FAHH_BCC.toc
 
       - name: Download artifact
         uses: actions/download-artifact@v4
@@ -100,7 +101,21 @@ jobs:
           echo "Game version IDs: $VERSION_IDS"
           echo "ids=$VERSION_IDS" >> "$GITHUB_OUTPUT"
 
-      - name: Upload to CurseForge
+          BCC_TOC_IFACE=$(grep -oP '## Interface:\s*\K\d+' FAHH_BCC.toc 2>/dev/null || echo "20505")
+          BCC_MAJOR=$((BCC_TOC_IFACE / 10000))
+          BCC_MINOR=$(( (BCC_TOC_IFACE % 10000) / 100 ))
+          BCC_PATCH=$((BCC_TOC_IFACE % 100))
+          BCC_TARGET_VERSION="${BCC_MAJOR}.${BCC_MINOR}.${BCC_PATCH}"
+          echo "Target BCC WoW version: $BCC_TARGET_VERSION"
+
+          BCC_VERSION_IDS=$(echo "$VERSIONS_JSON" | jq -c \
+            --arg ver "$BCC_TARGET_VERSION" \
+            '[.[] | select(.name == $ver) | .id]')
+
+          echo "BCC game version IDs: $BCC_VERSION_IDS"
+          echo "bcc_ids=$BCC_VERSION_IDS" >> "$GITHUB_OUTPUT"
+
+      - name: Upload to CurseForge (Retail)
         run: |
           VERSION_IDS='${{ steps.cf_versions.outputs.ids }}'
           if [ "$VERSION_IDS" = "[]" ] || [ -z "$VERSION_IDS" ]; then
@@ -114,6 +129,33 @@ jobs:
             "changelogType": "text",
             "displayName": "FAHH ${{ steps.version.outputs.version }}",
             "gameVersions": ${VERSION_IDS},
+            "releaseType": "release"
+          }
+          ENDJSON
+          )
+
+          echo "Metadata: $METADATA"
+
+          curl -f -X POST \
+            "https://wow.curseforge.com/api/projects/1502235/upload-file" \
+            -H "X-Api-Token: ${{ secrets.CURSE_API_TOKEN }}" \
+            -F "metadata=$METADATA" \
+            -F "file=@FAHH.zip"
+
+      - name: Upload to CurseForge (Burning Crusade Classic)
+        run: |
+          BCC_VERSION_IDS='${{ steps.cf_versions.outputs.bcc_ids }}'
+          if [ "$BCC_VERSION_IDS" = "[]" ] || [ -z "$BCC_VERSION_IDS" ]; then
+            echo "No BCC game version ID found, skipping BCC upload"
+            exit 0
+          fi
+
+          METADATA=$(cat <<ENDJSON
+          {
+            "changelog": "See https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}",
+            "changelogType": "text",
+            "displayName": "FAHH ${{ steps.version.outputs.version }}",
+            "gameVersions": ${BCC_VERSION_IDS},
             "releaseType": "release"
           }
           ENDJSON
