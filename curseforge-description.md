@@ -10,8 +10,8 @@ And then... **FAHHHHHH.**
 
 Every time a group member dies, FAHH plays a random "FAHH" sound. That's it. That's the addon.
 
-- 5 hand-curated FAHH sound variants
-- Random selection because variety is the spice of suffering
+- 8 hand-curated FAHH sound variants
+- Shuffled random selection because variety is the spice of suffering
 - Works in dungeons and raids
 - Toggle it off if you're a coward
 
