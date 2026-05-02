@@ -31,13 +31,40 @@ local CONTENT_KEYS = {
 
 local db
 local deadUnits = {}
+local soundBag = {}
+local lastSound
 
 ---------------------------------------------------------------------------
 -- Helpers
 ---------------------------------------------------------------------------
 
+local function RefillSoundBag()
+    for i, sound in ipairs(SOUNDS) do
+        soundBag[i] = sound
+    end
+
+    for i = #soundBag, 2, -1 do
+        local j = math.random(i)
+        soundBag[i], soundBag[j] = soundBag[j], soundBag[i]
+    end
+
+    if #soundBag > 1 and soundBag[#soundBag] == lastSound then
+        local swapIndex = math.random(#soundBag - 1)
+        soundBag[#soundBag], soundBag[swapIndex] = soundBag[swapIndex], soundBag[#soundBag]
+    end
+end
+
+local function GetRandomFahhPath()
+    if #soundBag == 0 then
+        RefillSoundBag()
+    end
+
+    lastSound = table.remove(soundBag)
+    return SOUND_DIR .. lastSound
+end
+
 local function PlayRandomFahh(debug)
-    local path = SOUND_DIR .. SOUNDS[math.random(#SOUNDS)]
+    local path = GetRandomFahhPath()
     local willPlay = PlaySoundFile(path, "Master")
     if debug then
         local tag = willPlay and "playing" or "|cffff0000FAILED|r"
