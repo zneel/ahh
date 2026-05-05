@@ -53,7 +53,6 @@ jobs:
           sparse-checkout: |
             FAHH.toc
             FAHH_Mainline.toc
-            FAHH_Vanilla.toc
             FAHH_Classic.toc
 
       - name: Download artifact
@@ -102,20 +101,6 @@ jobs:
           echo "Game version IDs: $VERSION_IDS"
           echo "ids=$VERSION_IDS" >> "$GITHUB_OUTPUT"
 
-          VANILLA_TOC_IFACE=$(grep -oP '## Interface:\s*\K\d+' FAHH_Vanilla.toc 2>/dev/null || echo "11508")
-          VANILLA_MAJOR=$((VANILLA_TOC_IFACE / 10000))
-          VANILLA_MINOR=$(( (VANILLA_TOC_IFACE % 10000) / 100 ))
-          VANILLA_PATCH=$((VANILLA_TOC_IFACE % 100))
-          VANILLA_TARGET_VERSION="${VANILLA_MAJOR}.${VANILLA_MINOR}.${VANILLA_PATCH}"
-          echo "Target Vanilla WoW version: $VANILLA_TARGET_VERSION"
-
-          VANILLA_VERSION_IDS=$(echo "$VERSIONS_JSON" | jq -c \
-            --arg ver "$VANILLA_TARGET_VERSION" \
-            '[.[] | select(.name == $ver) | .id]')
-
-          echo "Vanilla game version IDs: $VANILLA_VERSION_IDS"
-          echo "vanilla_ids=$VANILLA_VERSION_IDS" >> "$GITHUB_OUTPUT"
-
           TBC_TOC_IFACE=$(grep -oP '## Interface:\s*\K\d+' FAHH_Classic.toc 2>/dev/null || echo "20505")
           TBC_MAJOR=$((TBC_TOC_IFACE / 10000))
           TBC_MINOR=$(( (TBC_TOC_IFACE % 10000) / 100 ))
@@ -157,38 +142,11 @@ jobs:
             -F "metadata=$METADATA" \
             -F "file=@FAHH.zip"
 
-      - name: Upload to CurseForge (Classic Era)
-        run: |
-          VANILLA_VERSION_IDS='${{ steps.cf_versions.outputs.vanilla_ids }}'
-          if [ "$VANILLA_VERSION_IDS" = "[]" ] || [ -z "$VANILLA_VERSION_IDS" ]; then
-            echo "No Classic Era game version ID found, skipping Classic Era upload"
-            exit 0
-          fi
-
-          METADATA=$(cat <<ENDJSON
-          {
-            "changelog": "See https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}",
-            "changelogType": "text",
-            "displayName": "FAHH ${{ steps.version.outputs.version }}",
-            "gameVersions": ${VANILLA_VERSION_IDS},
-            "releaseType": "release"
-          }
-          ENDJSON
-          )
-
-          echo "Metadata: $METADATA"
-
-          curl -f -X POST \
-            "https://wow.curseforge.com/api/projects/1502235/upload-file" \
-            -H "X-Api-Token: ${{ secrets.CURSE_API_TOKEN }}" \
-            -F "metadata=$METADATA" \
-            -F "file=@FAHH.zip"
-
       - name: Upload to CurseForge (TBC Anniversary)
         run: |
           TBC_VERSION_IDS='${{ steps.cf_versions.outputs.tbc_ids }}'
           if [ "$TBC_VERSION_IDS" = "[]" ] || [ -z "$TBC_VERSION_IDS" ]; then
-            echo "No TBC Anniversary game version ID found, skipping TBC upload"
+            echo "No TBC Anniversary game version ID found, skipping"
             exit 0
           fi
 

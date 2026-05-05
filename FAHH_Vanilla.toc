@@ -1,9 +1,0 @@
-## Interface: 11508
-## Title: FAHH
-## Notes: Plays a FAHH sound when a group member dies.
-## Version: 1.3.5
-## SavedVariables: FAHHDB
-## Category: Audio
-## IconTexture: Interface\Icons\Spell_Shadow_DeathScream
-
-Core.lua
