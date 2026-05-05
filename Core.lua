@@ -18,13 +18,17 @@ local DEFAULTS = {
     enabled = true,
     dungeon = true,
     raid = true,
-    scenario = false,
-    world = false,
+    arena = true,
+    pvp = true,
+    scenario = true,
+    world = true,
 }
 
 local CONTENT_KEYS = {
     party    = "dungeon",
     raid     = "raid",
+    arena    = "arena",
+    pvp      = "pvp",
     scenario = "scenario",
     none     = "world",
 }
@@ -107,7 +111,7 @@ end
 -- Slash command
 ---------------------------------------------------------------------------
 
-local TOGGLES = { "dungeon", "raid", "scenario", "world" }
+local TOGGLES = { "dungeon", "raid", "arena", "pvp", "scenario", "world" }
 
 local function HandleSlash(msg)
     local cmd = strtrim(msg):lower()
