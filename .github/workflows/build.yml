@@ -54,6 +54,7 @@ jobs:
             FAHH.toc
             FAHH_Mainline.toc
             FAHH_Vanilla.toc
+            FAHH_Classic.toc
 
       - name: Download artifact
         uses: actions/download-artifact@v4
@@ -115,6 +116,20 @@ jobs:
           echo "Vanilla game version IDs: $VANILLA_VERSION_IDS"
           echo "vanilla_ids=$VANILLA_VERSION_IDS" >> "$GITHUB_OUTPUT"
 
+          TBC_TOC_IFACE=$(grep -oP '## Interface:\s*\K\d+' FAHH_Classic.toc 2>/dev/null || echo "20505")
+          TBC_MAJOR=$((TBC_TOC_IFACE / 10000))
+          TBC_MINOR=$(( (TBC_TOC_IFACE % 10000) / 100 ))
+          TBC_PATCH=$((TBC_TOC_IFACE % 100))
+          TBC_TARGET_VERSION="${TBC_MAJOR}.${TBC_MINOR}.${TBC_PATCH}"
+          echo "Target TBC Anniversary WoW version: $TBC_TARGET_VERSION"
+
+          TBC_VERSION_IDS=$(echo "$VERSIONS_JSON" | jq -c \
+            --arg ver "$TBC_TARGET_VERSION" \
+            '[.[] | select(.name == $ver) | .id]')
+
+          echo "TBC Anniversary game version IDs: $TBC_VERSION_IDS"
+          echo "tbc_ids=$TBC_VERSION_IDS" >> "$GITHUB_OUTPUT"
+
       - name: Upload to CurseForge (Retail)
         run: |
           VERSION_IDS='${{ steps.cf_versions.outputs.ids }}'
@@ -156,6 +171,33 @@ jobs:
             "changelogType": "text",
             "displayName": "FAHH ${{ steps.version.outputs.version }}",
             "gameVersions": ${VANILLA_VERSION_IDS},
+            "releaseType": "release"
+          }
+          ENDJSON
+          )
+
+          echo "Metadata: $METADATA"
+
+          curl -f -X POST \
+            "https://wow.curseforge.com/api/projects/1502235/upload-file" \
+            -H "X-Api-Token: ${{ secrets.CURSE_API_TOKEN }}" \
+            -F "metadata=$METADATA" \
+            -F "file=@FAHH.zip"
+
+      - name: Upload to CurseForge (TBC Anniversary)
+        run: |
+          TBC_VERSION_IDS='${{ steps.cf_versions.outputs.tbc_ids }}'
+          if [ "$TBC_VERSION_IDS" = "[]" ] || [ -z "$TBC_VERSION_IDS" ]; then
+            echo "No TBC Anniversary game version ID found, skipping TBC upload"
+            exit 0
+          fi
+
+          METADATA=$(cat <<ENDJSON
+          {
+            "changelog": "See https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}",
+            "changelogType": "text",
+            "displayName": "FAHH ${{ steps.version.outputs.version }}",
+            "gameVersions": ${TBC_VERSION_IDS},
             "releaseType": "release"
           }
           ENDJSON
